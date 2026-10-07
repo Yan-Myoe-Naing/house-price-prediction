@@ -1,91 +1,104 @@
-# Machine Failure Detection
+# House Price Prediction
 
-A machine learning project that predicts machine failures from operating data. It covers data exploration, preprocessing, model comparison and hyperparameter tuning.
+A machine learning regression project that predicts house prices from property attributes.
 
-Since failures represent only **3.39%** of the dataset, the project focuses on **recall and F1 score** to assess how well models detect failures.
+The project covers data exploration, feature preparation, model comparison and Ridge Regression tuning.
 
 ## Repository Files
 
 | File | Description |
 | --- | --- |
-| [Machine Failure Detection(1).ipynb](Machine%20Failure%20Detection%281%29.ipynb) | Notebook containing the analysis, model training and saved results. |
-| [Machine Failure Detection(1).pptx](Machine%20Failure%20Detection%281%29.pptx) | Slides summarising the workflow, results and limitations. |
-| [factory_data.csv](factory_data.csv) | Dataset used in the project. |
+| [House Price Prediction.ipynb](House%20Price%20Prediction.ipynb) | Notebook containing the analysis, training code and saved results. |
+| [House Price Prediction.pptx](House%20Price%20Prediction.pptx) | Presentation summarising the workflow and findings. |
+| [housing_price_data.csv](housing_price_data.csv) | Dataset used for training and evaluation. |
 
 ## Dataset
 
-The included dataset contains **20,000 records and 9 columns**.
+The included dataset contains **545 records and 8 columns**, with no missing values.
 
-| Class | Records | Proportion |
-| --- | ---: | ---: |
-| Normal operation (`0`) | 19,322 | 96.61% |
-| Machine failure (`1`) | 678 | 3.39% |
+- **Target:** `Price ($)`
+- **Features:** city, house area, number of bedrooms, number of toilets, stories and renovation status.
+- **Excluded identifier:** `House ID`
 
-The target column is `Machine Status`.
+The dataset includes houses from Boston, Chicago, Denver, New York and Seattle.
 
-The input features are:
-- Quality
-- Ambient temperature
-- Process temperature
-- Rotation speed
-- Torque
-- Tool wear
+## Project Workflow
 
-`Unique ID` and `Product ID` are excluded from model training.
-
-## Workflow
-
-1. Explore missing values, class distribution, feature distributions and correlations.
-2. Fill missing quality values with the mode, process temperature with forward-fill and rotation speed with the mean.
-3. Encode quality as `L = 0`, `M = 1` and `H = 2`.
-4. Split the data into **16,000 training records** and **4,000 test records** using a stratified 80/20 split.
-5. Explore scaling and two-component PCA for baseline models.
-6. Compare classification models.
-7. Tune Gradient Boosting without quality using **50 Optuna trials** and **5-fold stratified cross-validation**, maximising F1.
-
-Ensemble models use the original features or a subset without quality, rather than PCA inputs.
+1. Explore price distributions, property attributes and correlations.
+2. Remove `House ID` from the predictors.
+3. Encode renovation status:
+   - Unfurnished: `0`
+   - Semi-furnished: `1`
+   - Furnished: `2`
+4. One-hot encode city.
+5. Use an **80/20 train/test split**, with `random_state=42`:
+   - Training: **436 records**
+   - Test: **109 records**
+6. Apply **RobustScaler** to house area, fitted on the training set.
+7. Compare regression models against a mean-prediction baseline.
+8. Remove city dummy variables and tune Ridge Regression using **GridSearchCV**.
 
 ## Models Compared
 
-- Dummy Classifier
-- Logistic Regression
-- Decision Tree
-- Gaussian Naive Bayes
-- Random Forest
-- Gradient Boosting
-
-## Selected Model Results
-
-The selected model is a **tuned Gradient Boosting Classifier without the quality feature**.
-
-The results below come from the notebook's saved test outputs.
-
-| Metric | Result |
-| --- | ---: |
-| Accuracy | 99.60% |
-| Precision | 96.88% |
-| Recall | 91.18% |
-| F1 score | 0.9394 |
-
-### Confusion Matrix
-
-| Actual / Predicted | Normal | Failure |
+| Model | Test MAE ($) | Test R² |
 | --- | ---: | ---: |
-| Normal | 3,860 | 4 |
-| Failure | 12 | 124 |
+| Dummy Regressor | 174,862 | -0.018 |
+| K-Nearest Neighbours | 121,182 | 0.436 |
+| Linear Regression | 118,061 | 0.520 |
+| Decision Tree | 125,770 | 0.484 |
+| Support Vector Regression | 174,914 | -0.084 |
+| Ridge Regression (`alpha=1`) | 117,944 | 0.520 |
+| Lasso Regression | 118,060 | 0.520 |
 
-The selected model:
-- Detects **124 of 136 failures**
-- Misses **12 failures**
-- Produces **4 false alarms**
+These are the initial model results recorded in the notebook.
 
-The majority-class baseline achieves **96.60% test accuracy** but detects no failures. This demonstrates why accuracy alone is insufficient for this dataset.
+## Hyperparameter Tuning
 
-The best Optuna cross-validation F1 is **0.88435**, which is separate from the final test F1.
+Ridge Regression was tuned using **5-fold cross-validation**, with R² as the scoring metric.
+
+Alpha values tested:
+
+```python
+[0.01, 0.1, 1, 10, 100, 1000]
+```
+
+The best alpha was **10** for both feature sets.
+
+| Feature Set | Best Cross-validation R² |
+| --- | ---: |
+| With city variables | 0.5198 |
+| Without city variables | 0.5286 |
+
+## Final Model Results
+
+The selected model is **Ridge Regression with `alpha=10`, without city variables**.
+
+It uses five predictors:
+- House area
+- Number of bedrooms
+- Number of toilets
+- Stories
+- Renovation status
+
+| Metric | Test Result |
+| --- | ---: |
+| Mean Absolute Error (MAE) | $115,884.44 |
+| Mean Squared Error (MSE) | 23,992,023,309.72 |
+| R² | 0.52534 |
+
+The model's average absolute prediction error is approximately **$116,000**. It explains about **52.5% of the variation in test-set prices**.
+
+MAE is approximately **33.7% lower than the dummy baseline**.
+
+These results come from the notebook's saved outputs.
 
 ## Tools Used
 
-Python, pandas, NumPy, scikit-learn, Optuna, Matplotlib, Seaborn and Jupyter Notebook.
+- Python
+- pandas and NumPy
+- scikit-learn
+- Matplotlib and Seaborn
+- Jupyter Notebook
 
 ## How to Run
 
@@ -93,34 +106,33 @@ Python, pandas, NumPy, scikit-learn, Optuna, Matplotlib, Seaborn and Jupyter Not
 2. Install the required packages:
 
    ```bash
-   python -m pip install pandas numpy scikit-learn optuna matplotlib seaborn notebook
+   python -m pip install pandas numpy scikit-learn matplotlib seaborn notebook
    ```
 
-3. Keep `factory_data.csv` beside the notebook.
+3. Keep `housing_price_data.csv` beside the notebook.
 4. Replace the absolute Windows path in the data-loading cell with:
 
    ```python
-   df = pd.read_csv("factory_data.csv")
+   df = pd.read_csv("housing_price_data.csv")
    ```
 
-5. Launch Jupyter:
+5. Start Jupyter:
 
    ```bash
    jupyter notebook
    ```
 
-6. Open `Machine Failure Detection(1).ipynb` and run the cells in order.
-
-The Optuna search may take some time. Tuning results may vary between runs.
+6. Open `House Price Prediction.ipynb` and run the cells in order.
 
 ## Limitations and Future Improvements
 
-- Fit missing-value imputation within the training set and cross-validation folds. The current notebook performs imputation before splitting.
-- Check whether the dataset's row order supports forward-fill.
-- Reserve a fresh holdout set for final evaluation.
-- Check performance across different training seeds.
+- The dataset is small, and results are based on one random train/test split.
+- Several models were compared on the same test set. A fresh holdout set would support final evaluation.
+- Scaling occurs before cross-validation. A pipeline would allow preprocessing to be fitted within each fold.
+- Only house area is scaled, so raw coefficient sizes are not directly comparable as feature importance.
+- Future experiments could test full feature scaling, log-price transformation and residual analysis.
 
 ## Author
 
 **Yan Myoe Naing**  
-Applied AI and Analytics, Singapore Polytechnic**
+Applied AI and Analytics, Singapore Polytechnic
